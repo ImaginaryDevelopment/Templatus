@@ -7,7 +7,6 @@ nuget fparsec
 nuget fsharp.compiler.service
 nuget fsharp.core
 nuget ilrepack
-nuget unionargparser
 nuget unquote
 nuget xunit
 nuget xunit.runner.console
