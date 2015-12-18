@@ -8,6 +8,25 @@ open Chessie.ErrorHandling
 open Microsoft.FSharp.Compiler.Interactive.Shell
 
 module OutputGenerator =
+    open System.Reflection
+
+    let RedirectAssembly shortName (targetVersion:Version) publicKeyToken =
+    
+        let rec onResolveEvent = new ResolveEventHandler( fun sender evArgs ->
+            let requestedAssembly = AssemblyName(evArgs.Name)
+            if requestedAssembly.Name <> shortName then
+                Unchecked.defaultof<Assembly>
+            else
+                printfn "Redirecting assembly load of %s ,\tloaded by %s" evArgs.Name (if evArgs.RequestingAssembly = null then "(unknown)" else evArgs.RequestingAssembly.FullName)
+                requestedAssembly.Version <- targetVersion
+                requestedAssembly.SetPublicKeyToken(AssemblyName(sprintf "x, PublicKeyToken=%s" publicKeyToken).GetPublicKeyToken())
+                requestedAssembly.CultureInfo <- System.Globalization.CultureInfo.InvariantCulture
+                AppDomain.CurrentDomain.remove_AssemblyResolve(onResolveEvent)
+                Assembly.Load(requestedAssembly)
+                )
+
+        AppDomain.CurrentDomain.add_AssemblyResolve(onResolveEvent)
+
     let private prep (outputFileName: string) templateParameters =
         let basis = [
             "open System"
@@ -65,6 +84,17 @@ module OutputGenerator =
             use err = new StringWriter ()
 
             let cfg = FsiEvaluationSession.GetDefaultConfiguration ()
+            RedirectAssembly "Microsoft.Build.Framework" (Version("14.0.0.0")) "b03f5f7f11d50a3a"
+
+
+            try
+                System.Reflection.Assembly.LoadFile(@"C:\Program Files (x86)\MSBuild\14.0\Bin\Microsoft.Build.Framework.dll") |> ignore
+            with |ex -> 
+                //System.Reflection.Assembly.Load("Microsoft.Build.Framework") |> ignore
+                System.Diagnostics.Debug.WriteLine(sprintf "%A ex" ex)
+                System.Diagnostics.Debugger.Break()
+            // RedirectAssembly "FSharp.Core" (Version("4.3.1.0")) "b03f5f7f11d50a3a"
+
             use fsi = FsiEvaluationSession.Create (cfg, [|"--noninteractive"|], new StringReader (""), out, err)
 
             prep f templateParameters |> List.iter fsi.EvalInteraction
