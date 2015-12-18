@@ -3,44 +3,56 @@
 open System
 open Templatus.Core
 open Chessie.ErrorHandling
-open Nessos.UnionArgParser
+open Templatus
 
-type Args =
-    | [<CustomCommandLine("-t")>] Templates of string
-    | [<CustomCommandLine("-p")>] TemplateParameters of string
-    | [<CustomCommandLine("-parallelization")>] Parallelization of int
-with
-    interface IArgParserTemplate with
-        member s.Usage =
-            match s with
-            | Templates _ -> "path to the template to process"
-            | TemplateParameters _ -> "parameters to pass in the templates, i.e. --params age=3;name=Timmy"
-            | Parallelization _ -> "degree of parallelism of template processing"
+type Arg = 
+        |TemplateName of string
+        |Parameters of string
+        |Parallellism of int
 
 module Main =
-    let getTemplateNames (parsedArgs: ArgParseResults<Args>) =
-        match parsedArgs.GetResults <@ Templates @> with
-        | [] -> parsedArgs.Usage (message = "No templates provided.\nUsage:") |> fail
-        | list -> pass list
+    let getTemplateNames (parsedArgs: Arg list) =
+        match parsedArgs with
+        | [] 
+        | _ when not <| List.exists(fun l -> match l with |TemplateName _ -> true | _ -> false) parsedArgs 
+            -> "No templates provided.\nUsage:" |> fail
+        | list -> list |> List.choose (fun l -> match l with |TemplateName s -> Some s | _ -> None) |> pass
 
-    let getTemplateParameters (parsedArgs: ArgParseResults<Args>) =
-        match parsedArgs.TryGetResult <@ TemplateParameters @> with
-        | Some parameters -> parameters.Split ';'
-                             |> List.ofArray
-                             |> List.map (fun p -> p.Split '=')
-                             |> List.choose (fun ps -> if ps.Length <> 2 then None else Some (ps.[0], ps.[1]))
-        | None -> []
+    let getTemplateParameters (parsedArgs: Arg) =
+        match parsedArgs with
+        | Parameters parameters -> 
+            parameters.Split ';'
+                |> List.ofArray
+                |> List.map (fun p -> p.Split '=')
+                |> List.choose (fun ps -> if ps.Length <> 2 then None else Some (ps.[0], ps.[1]))
+        | _ -> []
 
-    let getDegreeOfParallelism (parsedArgs: ArgParseResults<Args>) =
-        match parsedArgs.TryGetResult <@ Parallelization @> with
-        | Some n -> if n < 1 then 1 else n
-        | None -> 1
+    let getDegreeOfParallelism (parsedArgs: Arg) =
+        //match parsedArgs.TryGetResult <@ Parallelization @> with
+        //| Some n -> if n < 1 then 1 else n
+        //| None -> 
+        1
+    
 
     [<EntryPoint>]
-    let main _ =
-        let results = UnionArgParser.Create<Args>().Parse(ignoreUnrecognized = true, raiseOnUsage = false)
-        let parameters = getTemplateParameters results
-        let parallelism = getDegreeOfParallelism results
+    let main s =
+        let rec results (args:string list) : Arg list = 
+            match args with 
+            | [] -> List.empty
+            | "-t"::x::remainder  -> 
+                [ 
+                    yield Arg.TemplateName x
+                    yield! results remainder
+                ]
+            | "-p"::x::remainder -> 
+                [
+                    yield Arg.Parameters x
+                    yield! results remainder
+                ]
+            | x -> failwithf "arg options unrecognized %A" args
+        let results = results ( s |> List.ofArray)
+        let parameters = results |> Seq.choose (function | Parameters s as p -> getTemplateParameters p |> Some | _ -> None) |> Seq.head
+        let parallelism = results |> Seq.choose( function | Parallellism i as x ->  getDegreeOfParallelism x |> Some | _ -> None) |> Seq.tryHead |> function | Some i -> i | None -> 1
 
         let processChunk list = list |> List.map TemplateParser.parse
                                 |> List.map (bind (Processor.processTemplate TemplateParser.parse))
