@@ -49,6 +49,11 @@ module Main =
                     yield Arg.Parameters x
                     yield! results remainder
                 ]
+            | "-parallelization"::i::remainder ->
+                [
+                    yield Arg.Parallellism (i |> int)
+                    yield! results remainder
+                ]
             | x -> failwithf "arg options unrecognized %A" args
         let results = results ( s |> List.ofArray)
         let parameters = results |> Seq.choose (function | Parameters s as p -> getTemplateParameters p |> Some | _ -> None) |> Seq.head
