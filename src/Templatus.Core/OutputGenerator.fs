@@ -84,19 +84,16 @@ module OutputGenerator =
             use err = new StringWriter ()
 
             let cfg = FsiEvaluationSession.GetDefaultConfiguration ()
-            System.Diagnostics.Debug.WriteLine("Redirecting Assembly! debug")
-            System.Diagnostics.Trace.WriteLine("Redirecting Assembly! trace")
-            System.Console.WriteLine("Redirecting Assembly! console")
             RedirectAssembly "Microsoft.Build.Framework" (Version("14.0.0.0")) "b03f5f7f11d50a3a"
-
-
-            try
-                System.Reflection.Assembly.LoadFile(@"C:\Program Files (x86)\MSBuild\14.0\Bin\Microsoft.Build.Framework.dll") |> ignore
-            with |ex -> 
-                //System.Reflection.Assembly.Load("Microsoft.Build.Framework") |> ignore
-                System.Diagnostics.Debug.WriteLine(sprintf "%A ex" ex)
-                System.Diagnostics.Debugger.Break()
-            // RedirectAssembly "FSharp.Core" (Version("4.3.1.0")) "b03f5f7f11d50a3a"
+//
+//
+//            try
+//                System.Reflection.Assembly.LoadFile(@"C:\Program Files (x86)\MSBuild\14.0\Bin\Microsoft.Build.Framework.dll") |> ignore
+//            with |ex -> 
+//                //System.Reflection.Assembly.Load("Microsoft.Build.Framework") |> ignore
+//                System.Diagnostics.Debug.WriteLine(sprintf "%A ex" ex)
+//                System.Diagnostics.Debugger.Break()
+//            // RedirectAssembly "FSharp.Core" (Version("4.3.1.0")) "b03f5f7f11d50a3a"
 
             use fsi = FsiEvaluationSession.Create (cfg, [|"--noninteractive"|], new StringReader (""), out, err)
 
