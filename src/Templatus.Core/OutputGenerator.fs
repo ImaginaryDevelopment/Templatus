@@ -84,6 +84,9 @@ module OutputGenerator =
             use err = new StringWriter ()
 
             let cfg = FsiEvaluationSession.GetDefaultConfiguration ()
+            System.Diagnostics.Debug.WriteLine("Redirecting Assembly! debug")
+            System.Diagnostics.Trace.WriteLine("Redirecting Assembly! trace")
+            System.Console.WriteLine("Redirecting Assembly! console")
             RedirectAssembly "Microsoft.Build.Framework" (Version("14.0.0.0")) "b03f5f7f11d50a3a"
 
 

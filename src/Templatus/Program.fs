@@ -74,7 +74,10 @@ module Main =
                            |> lift (Async.Parallel >> Async.RunSynchronously)
                            |> lift (List.ofArray >> List.concat)
                            >>= collect
-
-        match createOutput with
-        | Ok _ -> printfn "All templates processed successfully."; 0
-        | Bad reasons -> reasons |> List.iter (eprintfn "%s"); 1
+        let resultCode = 
+            match createOutput with
+            | Ok _ -> printfn "All templates processed successfully."; 0
+            | Bad reasons -> reasons |> List.iter (eprintfn "%s"); 1
+        if System.Diagnostics.Debugger.IsAttached then
+            Console.ReadLine() |> ignore
+        resultCode
