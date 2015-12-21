@@ -28,14 +28,23 @@ module Main =
         | _ -> []
 
     let getDegreeOfParallelism (parsedArgs: Arg) =
+        match parsedArgs with
+        | Parallellism i -> i
+        | _ -> 1
         //match parsedArgs.TryGetResult <@ Parallelization @> with
         //| Some n -> if n < 1 then 1 else n
         //| None -> 
-        1
-    
 
     [<EntryPoint>]
     let main s =
+        do
+            let microsoftKey = "b03f5f7f11d50a3a"
+            Utils.broadcastResolves ()
+            Utils.broadcastLoads ()
+
+            Utils.redirectAssembly "Microsoft.Build.Framework" (Version("14.0.0.0")) microsoftKey
+            Utils.redirectAssembly "FSharp.Core" (Version("4.4.0.0")) microsoftKey
+
         let rec results (args:string list) : Arg list = 
             match args with 
             | [] -> List.empty
@@ -58,11 +67,18 @@ module Main =
         let results = results ( s |> List.ofArray)
         let parameters = results |> Seq.choose (function | Parameters s as p -> getTemplateParameters p |> Some | _ -> None) |> Seq.head
         let parallelism = results |> Seq.choose( function | Parallellism i as x ->  getDegreeOfParallelism x |> Some | _ -> None) |> Seq.tryHead |> function | Some i -> i | None -> 1
+        let runDiagnostic prefix x = Utils.runAssemblyDiagnostic prefix; pass x
+        let tryOrRunDiagnostic prefix f x =
+            try
+                f x
+            with ex ->
+                Utils.runAssemblyDiagnostic prefix 
+                reraise ()
 
         let processChunk list = list |> List.map TemplateParser.parse
                                 |> List.map (bind (Processor.processTemplate TemplateParser.parse))
-                                |> List.map (bind (fun c -> OutputGenerator.runAssemblyDiagnostic " Templates are processed"; pass c))
-                                |> List.map (bind (OutputGenerator.generate parameters))
+                                |> List.map (bind (runDiagnostic " Templates are processed"))
+                                |> List.map (bind (tryOrRunDiagnostic "(Generation failed)" (OutputGenerator.generate parameters)))
                                 |> Async.singleton
                    
         printfn "Degree of parallelism: %d" parallelism
