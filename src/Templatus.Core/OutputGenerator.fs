@@ -9,6 +9,33 @@ open Microsoft.FSharp.Compiler.Interactive.Shell
 
 module OutputGenerator =
     open System.Reflection
+    open System.Security.Cryptography
+
+    let toAllChannels s = 
+        s |> sprintf "Debug: %s" |> System.Diagnostics.Debug.WriteLine
+        s |> sprintf "Trace: %s" |> System.Diagnostics.Trace.WriteLine
+        s |> sprintf "Console: %s" |> System.Console.WriteLine
+
+    let runAssemblyDiagnostic prefix = 
+        let getHashS (s:string) : string =
+            let sb = StringBuilder()
+            let getHash(s:string) =
+                let algo = MD5.Create()
+                s
+                |> Encoding.UTF8.GetBytes
+                |> algo.ComputeHash
+            getHash s
+            |> Seq.iter( fun b -> sb.Append(b.ToString("X2")) |> ignore)
+            sb.ToString()
+
+        let assemblyNames = AppDomain.CurrentDomain.GetAssemblies() |> Seq.map (fun a -> a.FullName)
+        assemblyNames
+        |> Seq.iter (printfn "Assembly loaded%s: %s" prefix)
+
+        assemblyNames
+        |> fun n -> String.Join(",",Array.ofSeq n)
+        |> getHashS
+        |> toAllChannels
 
     let RedirectAssembly shortName (targetVersion:Version) publicKeyToken =
     
@@ -85,15 +112,7 @@ module OutputGenerator =
 
             let cfg = FsiEvaluationSession.GetDefaultConfiguration ()
             RedirectAssembly "Microsoft.Build.Framework" (Version("14.0.0.0")) "b03f5f7f11d50a3a"
-//
-//
-//            try
-//                System.Reflection.Assembly.LoadFile(@"C:\Program Files (x86)\MSBuild\14.0\Bin\Microsoft.Build.Framework.dll") |> ignore
-//            with |ex -> 
-//                //System.Reflection.Assembly.Load("Microsoft.Build.Framework") |> ignore
-//                System.Diagnostics.Debug.WriteLine(sprintf "%A ex" ex)
-//                System.Diagnostics.Debugger.Break()
-//            // RedirectAssembly "FSharp.Core" (Version("4.3.1.0")) "b03f5f7f11d50a3a"
+            runAssemblyDiagnostic " before FsiEvaluationSession.Create"
 
             use fsi = FsiEvaluationSession.Create (cfg, [|"--noninteractive"|], new StringReader (""), out, err)
 

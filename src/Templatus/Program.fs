@@ -61,6 +61,7 @@ module Main =
 
         let processChunk list = list |> List.map TemplateParser.parse
                                 |> List.map (bind (Processor.processTemplate TemplateParser.parse))
+                                |> List.map (bind (fun c -> OutputGenerator.runAssemblyDiagnostic " Templates are processed"; pass c))
                                 |> List.map (bind (OutputGenerator.generate parameters))
                                 |> Async.singleton
                    
